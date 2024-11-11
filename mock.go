@@ -20,6 +20,7 @@ type mock struct {
 	factory  redis.Cmdable
 	client   redis.Cmdable
 	expected []expectation
+	unexpected []redis.Cmder
 
 	strictOrder bool
 
@@ -157,6 +158,7 @@ func (m *mock) process(cmd redis.Cmder) (err error) {
 		}
 		err = fmt.Errorf(msg, cmd.Args())
 		cmd.SetErr(err)
+		m.unexpected = append(m.unexpected, cmd)
 		return err
 	}
 
@@ -339,6 +341,7 @@ func (m *mock) ClearExpect() {
 		return
 	}
 	m.expected = nil
+	m.unexpected = nil
 }
 
 func (m *mock) Regexp() *mock {
@@ -377,6 +380,13 @@ func (m *mock) ExpectationsWereMet() error {
 		}
 	}
 	return nil
+}
+
+func (m *mock) UnexpectedCallsWereMade() (bool, []redis.Cmder) {
+	if m.parent != nil {
+		return m.parent.UnexpectedCallsWereMade()
+	}
+	return len(m.unexpected) > 0, m.unexpected
 }
 
 func (m *mock) MatchExpectationsInOrder(b bool) {
